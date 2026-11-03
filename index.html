@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Per filamentspoel slicerinstellingen bijhouden en de Kickstarter x Autodesk FDM-test scoren.">
+<style>body{margin:0;font:14px/1.5 system-ui,sans-serif}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Spoelboek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: werkbank. Smalle spoelenrail links, werkblad rechts met tabs. Op telefoon onder elkaar. */
+:root{
+  --bg:#eef0ec; --panel:#fbfbf8; --ink:#1d2320; --muted:#5d6862; --line:#d5dad3;
+  --accent:#2b6a5a; --accent-ink:#ffffff; --accent-soft:#dbe9e3;
+  --good:#2f7d3e; --warn:#a86a12; --bad:#b23a2e;
+  --good-soft:#e1efe2; --warn-soft:#f6ead5; --bad-soft:#f5dfdb;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151917; --panel:#1d2220; --ink:#e6ebe7; --muted:#9aa59f; --line:#323a36;
+  --accent:#6fbfa6; --accent-ink:#0f1a16; --accent-soft:#233a33;
+  --good:#7cc98a; --warn:#e0a952; --bad:#ec8a7e;
+  --good-soft:#1f3324; --warn-soft:#3a2e1a; --bad-soft:#3d2320; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151917; --panel:#1d2220; --ink:#e6ebe7; --muted:#9aa59f; --line:#323a36;
+  --accent:#6fbfa6; --accent-ink:#0f1a16; --accent-soft:#233a33;
+  --good:#7cc98a; --warn:#e0a952; --bad:#ec8a7e;
+  --good-soft:#1f3324; --warn-soft:#3a2e1a; --bad-soft:#3d2320; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:28px}
+h2{font-size:20px}
+h3{font-size:15px}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.top p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.status{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.rail{display:flex;flex-direction:column;gap:8px}
+.spool{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px;color:inherit;font:inherit;cursor:pointer}
+.spool:hover{border-color:var(--muted)}
+.spool[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.reel{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:radial-gradient(circle,var(--panel) 0 22%,var(--c,#888) 24% 100%)}
+.spool .meta{min-width:0;flex:1}
+.spool .nm,.spool .sub{display:block}
+.spool .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spool .sub{font-size:12px;color:var(--muted)}
+.chip{font-family:var(--mono);font-size:12px;padding:1px 7px;border-radius:99px;background:var(--accent-soft);color:var(--ink);white-space:nowrap}
+.chip.good{background:var(--good-soft);color:var(--good)} .chip.warn{background:var(--warn-soft);color:var(--warn)} .chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.none{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.btn{font:inherit;font-weight:500;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:3px 9px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.sheet-head{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+.sheet-head .who{display:flex;gap:12px;align-items:center;min-width:0}
+.sheet-head .reel{width:40px;height:40px}
+.scorebox{display:flex;align-items:center;gap:12px}
+.bignum{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.bignum small{font-size:15px;color:var(--muted);font-weight:600}
+.segs{display:grid;grid-template-columns:repeat(7,14px);gap:3px}
+.segs i{height:22px;border-radius:2px;background:var(--line)}
+.tabs{display:flex;gap:2px;padding:0 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{font:inherit;font-weight:500;background:none;border:0;border-bottom:2px solid transparent;padding:10px 10px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{padding:18px;display:flex;flex-direction:column;gap:20px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+legend{font-family:var(--display);font-weight:600;font-size:15px;padding:0;margin-bottom:8px}
+.hint{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+.field{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dotted var(--line)}
+.field label{min-width:0}
+.field .lab{display:block}
+.field .unit{font-size:12px;color:var(--muted);font-family:var(--mono)}
+input[type=number],input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;width:100%;min-width:0}
+input[type=number]{font-family:var(--mono);text-align:right}
+textarea{min-height:60px;resize:vertical}
+input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-radius:4px;background:var(--bg);padding:2px}
+.form2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.form2 label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.test{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px}
+.test .tnum{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.test .body{grid-column:1/-1;display:flex;flex-direction:column;gap:8px}
+.test .pts{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;align-self:start}
+.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.opts{display:flex;flex-direction:column;gap:4px}
+.opts label{display:flex;gap:8px;align-items:flex-start;font-size:13.5px}
+.opts input{margin-top:3px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-variant-numeric:tabular-nums;width:100%}
+th,td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:500}
+th:first-child,td:first-child{text-align:left}
+td input[type=number]{width:88px}
+.test{align-content:start}
+.dimres{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.advice{display:flex;flex-direction:column;gap:10px}
+.adv{border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:0 var(--r) var(--r) 0;padding:10px 12px}
+.adv.bad{border-color:var(--bad);background:var(--bad-soft)}
+.adv.ok{border-color:var(--good);background:var(--good-soft)}
+.adv h3{font-size:14px;margin-bottom:4px}
+.adv ul{margin:4px 0 0;padding-left:18px}
+.adv li{margin:2px 0}
+.adv .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg);padding:0 4px;border-radius:3px}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--r);padding:28px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.empty p{margin:0;color:var(--muted);max-width:60ch}
+.hist td.ch{text-align:left;white-space:normal;font-size:12.5px;color:var(--muted);min-width:200px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.foot{margin-top:22px;font-size:12.5px;color:var(--muted);max-width:75ch}
+.foot a,.top a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Spoelboek</h1>
+      <p>Per spoel je Bambu Studio-instellingen bijhouden, de <a href="https://github.com/kickstarter/kickstarter-autodesk-3d/tree/master/FDM-protocol" target="_blank" rel="noopener">Kickstarter x Autodesk FDM-test</a> scoren op 30, en zien welke instelling je best aanpast.</p>
+    </div>
+    <span class="status" id="status">laden…</span>
+  </div>
+  <div class="grid">
+    <aside class="rail" id="rail" aria-label="Spoelen"></aside>
+    <main id="main"></main>
+  </div>
+  <p class="foot">Scoring volgens het FDM-protocol uit de repo (v4 testmodel, <code>ksr_fdmtest_v4.stl</code>). Het advies zijn vuistregels om mee te starten, geen garantie: verander telkens één of twee dingen, print opnieuw en vergelijk in Historiek. Temperatuur, flow en pressure advance kalibreer je het nauwkeurigst met het menu Calibration in Bambu Studio.</p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* Instellingen zoals ze in Bambu Studio heten */
+const SETTINGS = [
+  {g:"Filament", k:"nozzleTemp", label:"Nozzle temperature", unit:"°C", step:5},
+  {g:"Filament", k:"bedTemp", label:"Bed temperature", unit:"°C", step:5},
+  {g:"Filament", k:"flowRatio", label:"Flow ratio", unit:"", step:0.01},
+  {g:"Filament", k:"pa", label:"Pressure advance (K)", unit:"", step:0.001},
+  {g:"Filament", k:"maxVol", label:"Max volumetric speed", unit:"mm³/s", step:1},
+  {g:"Filament", k:"fanMax", label:"Fan max speed", unit:"%", step:5},
+  {g:"Filament", k:"overhangFan", label:"Fan speed for overhang", unit:"%", step:5},
+  {g:"Filament", k:"retract", label:"Retraction length (override)", unit:"mm", step:0.1},
+  {g:"Proces", k:"xyContour", label:"X-Y contour compensation", unit:"mm", step:0.01, zero:true},
+  {g:"Proces", k:"xyHole", label:"X-Y hole compensation", unit:"mm", step:0.01, zero:true},
+  {g:"Proces", k:"elephant", label:"Elephant foot compensation", unit:"mm", step:0.01},
+  {g:"Proces", k:"bridgeFlow", label:"Bridge flow", unit:"", step:0.05},
+  {g:"Proces", k:"outerAccel", label:"Outer wall acceleration", unit:"mm/s²", step:500},
+];
+const SKEY = Object.fromEntries(SETTINGS.map(s => [s.k, s]));
+
+/* Startwaarden: enkel temperaturen, zeker niet universeel. Altijd het etiket checken. */
+const MATERIALS = {
+  "PLA":  {nozzleTemp:220, bedTemp:55},
+  "PETG": {nozzleTemp:250, bedTemp:70},
+  "ABS":  {nozzleTemp:260, bedTemp:90},
+  "ASA":  {nozzleTemp:260, bedTemp:90},
+  "TPU":  {nozzleTemp:225, bedTemp:35},
+  "Ander":{}
+};
+
+const TESTS = [
+  {k:"dim", n:1, title:"Maatnauwkeurigheid", max:5},
+  {k:"flow", n:2, title:"Fijne flow (spires)", max:5},
+  {k:"pins", n:3, title:"Fijne negatieve details (pinnen)", max:5},
+  {k:"over", n:4, title:"Overhangs", max:5},
+  {k:"bridge", n:5, title:"Bruggen", max:5},
+  {k:"ring", n:6, title:"XY-resonantie (ringing)", max:2.5},
+  {k:"z", n:7, title:"Z-as uitlijning", max:2.5},
+];
+const DIMS = [25,20,15,10,5];
+
+/* ---------- scoring volgens het protocol ---------- */
+function num(v){ if(v===""||v==null) return null; const n=Number(v); return Number.isFinite(n)?n:null; }
+function dimStats(inp){
+  const ex=[], ey=[], sx=[], sy=[];
+  DIMS.forEach((t,i)=>{
+    const x=num(inp.dim?.x?.[i]), y=num(inp.dim?.y?.[i]);
+    if(x!=null){ ex.push(Math.abs(x-t)); sx.push(x-t); }
+    if(y!=null){ ey.push(Math.abs(y-t)); sy.push(y-t); }
+  });
+  if(!ex.length && !ey.length) return null;
+  const avg=a=>a.length? a.reduce((p,c)=>p+c,0)/a.length : null;
+  const ax=avg(ex), ay=avg(ey);
+  const overall = ax!=null && ay!=null ? (ax+ay)/2 : (ax ?? ay);
+  const signed = avg([...sx,...sy]);
+  const diff = ax!=null && ay!=null ? Math.abs(ax-ay) : null;
+  return {ax, ay, overall, signed, diff, n: ex.length+ey.length};
+}
+function scoreAll(inp){
+  const s={};
+  const d=dimStats(inp);
+  if(d){ const o=d.overall; s.dim = o<=0.10?5 : o<=0.20?4 : o<=0.30?3 : o<=0.40?2 : 1; }
+  const L=num(inp.spireLen);
+  if(L!=null) s.flow = L<30 ? 0 : (inp.stringing ? 2.5 : 5);
+  if(inp.pins!=null && inp.pins!=="") s.pins = Number(inp.pins);
+  if(inp.over!=null && inp.over!=="") s.over = Number(inp.over);
+  if(inp.bridges!=null && inp.bridges!==""){ const b=Number(inp.bridges); s.bridge = b>3?1 : 5-b; }
+  if(inp.ring!=null && inp.ring!=="") s.ring = inp.ring==="yes" ? 0 : 2.5;
+  if(inp.z!=null && inp.z!=="") s.z = inp.z==="yes" ? 0 : 2.5;
+  const total = Object.values(s).reduce((p,c)=>p+c,0);
+  return {s, total, complete: TESTS.every(t=>s[t.k]!=null), dim:d};
+}
+const fmt = (n,d=1) => n==null? "–" : (Math.round(n*10**d)/10**d).toString().replace(".",",");
+function band(total){ return total>=25?"good": total>=18?"warn":"bad"; }
+
+/* ---------- advies ---------- */
+function adviceFor(sp, inp, sc){
+  const S=sp.settings||{}, out=[];
+  const act=(k,delta,label)=>({k,delta,label});
+  const d=sc.dim;
+  if(sc.s.dim!=null && sc.s.dim<5 && d){
+    const items=[], acts=[];
+    const big = d.signed>0;
+    const comp = Math.round((-d.signed/2)*100)/100;
+    items.push(`Gemiddeld zijn je stappen <b>${big?"te groot":"te klein"}</b> (${fmt(d.signed,2)} mm). X-Y contour compensation werkt per zijde, dus de helft van die afwijking: ongeveer <code>${fmt(comp,2)} mm</code> bovenop je huidige waarde.`);
+    if(comp!==0) acts.push(act("xyContour", comp, `Contour ${comp>0?"+":""}${fmt(comp,2)} mm`));
+    if(big) items.push("Te groot over de hele lijn wijst vaak op een te hoge flow ratio. Doe de Flow rate-kalibratie in Bambu Studio voor je aan compensatie begint.");
+    if(d.diff!=null && d.diff>0.1) items.push(`X en Y wijken ${fmt(d.diff,2)} mm van elkaar af. Dat is eerder mechanisch (riemspanning, speling) dan een slicerinstelling.`);
+    out.push({t:"dim", sev: sc.s.dim<=2?"bad":"warn", items, acts});
+  }
+  if(sc.s.flow!=null && sc.s.flow<5){
+    const items=[], acts=[];
+    if(sc.s.flow===0){
+      items.push("Spires korter dan 30 mm: de dunne toppen zijn gesmolten of afgebroken. Meestal te warm of te weinig koeling per laag.");
+      items.push("Check bij filament → Cooling dat <i>Slow printing down for better layer cooling</i> aan staat.");
+      acts.push(act("nozzleTemp",-5,"Nozzle −5 °C"), act("fanMax",+10,"Fan +10 %"));
+    } else {
+      items.push("Stringing tussen de spires. Eerst de spoel drogen als die al een tijd open ligt: vocht geeft veel stringing.");
+      items.push("Daarna temperatuur iets lager, en pas dan retraction verhogen in de filament overrides.");
+      acts.push(act("nozzleTemp",-5,"Nozzle −5 °C"), act("retract",+0.2,"Retraction +0,2 mm"));
+    }
+    out.push({t:"flow", sev: sc.s.flow===0?"bad":"warn", items, acts});
+  }
+  if(sc.s.pins!=null && sc.s.pins<5){
+    const stuck = 5-sc.s.pins;
+    const step = stuck>=3 ? 0.1 : 0.05;
+    out.push({t:"pins", sev: sc.s.pins<=2?"bad":"warn",
+      items:[`${stuck} pin${stuck>1?"nen":""} zit${stuck>1?"ten":""} vast. Gaten groter maken met X-Y hole compensation, in kleine stappen.`,
+             "Zitten ze vooral onderaan vast, dan speelt elephant foot mee: verhoog Elephant foot compensation een beetje."],
+      acts:[act("xyHole",step,`Hole +${fmt(step,2)} mm`), act("elephant",+0.05,"Elephant foot +0,05")]});
+  }
+  if(sc.s.over!=null && sc.s.over<5){
+    out.push({t:"over", sev: sc.s.over<=1?"bad":"warn",
+      items:["Vlakke overhangs (15° en 20°) hebben vooral meer koeling nodig. Zet Fan speed for overhang hoger en hou <i>Slow down for overhang</i> aan in het proces (Speed).",
+             "Nog niet goed? Dan de temperatuur 5 °C omlaag."],
+      acts:[act("overhangFan",+10,"Overhang fan +10 %"), act("nozzleTemp",-5,"Nozzle −5 °C")]});
+  }
+  if(sc.s.bridge!=null && sc.s.bridge<5){
+    out.push({t:"bridge", sev: sc.s.bridge<=2?"bad":"warn",
+      items:["Bruggen zakken door tot op het vlak eronder. Minder materiaal in de brug helpt: Bridge flow iets omlaag.",
+             "Meer koeling tijdens bruggen helpt ook. Die volgt dezelfde ventilatorinstelling als overhangs."],
+      acts:[act("bridgeFlow",-0.05,"Bridge flow −0,05"), act("overhangFan",+10,"Overhang fan +10 %")]});
+  }
+  if(sc.s.ring===0){
+    out.push({t:"ring", sev:"warn",
+      items:["Ringing zichtbaar. Op een Bambu doet de printer zelf vibration compensation: herhaal de printerkalibratie op het toestel en check de riemspanning.",
+             "In de slicer kan je de buitenwand rustiger printen met een lagere Outer wall acceleration."],
+      acts:[act("outerAccel",-1000,"Outer wall accel −1000")]});
+  }
+  if(sc.s.z===0){
+    out.push({t:"z", sev:"warn",
+      items:["Regelmatig patroon op de pilaar met de periode van de spindel. Dat is mechanisch: Z-spindels en geleiders reinigen en smeren volgens de onderhoudsgids van je printer. Geen slicerinstelling."],
+      acts:[]});
+  }
+  return out;
+}
+
+/* ---------- opslag: db, met localStorage als terugval ---------- */
+const LKEY="spoelboek.v1";
+let store={mode:"local", col:null};
+let spools={};             // id -> spool
+let selected=null;
+let tab="test";
+const drafts={};           // spoolId -> test input
+const writing={}, dirty={};
+
+function lsRead(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"{}"); }catch{ return {}; } }
+function lsWrite(){ try{ localStorage.setItem(LKEY, JSON.stringify(spools)); }catch{} }
+function setStatus(t){ $("#status").textContent=t; }
+
+async function persist(id){
+  if(store.mode!=="db"){ lsWrite(); return; }
+  if(writing[id]){ dirty[id]=true; return; }
+  writing[id]=true;
+  try{
+    do{
+      dirty[id]=false;
+      const sp=spools[id];
+      if(sp) await store.col.doc(id).set(JSON.parse(JSON.stringify(sp)));
+      else await store.col.doc(id).delete();
+    }while(dirty[id]);
+    setStatus("opgeslagen");
+  }catch(e){
+    setStatus(e?.code==="quota_exceeded" ? "opslag vol, verwijder oude spoelen" : "opslaan mislukt");
+  }finally{ writing[id]=false; }
+}
+const timers={};
+function persistSoon(id){ clearTimeout(timers[id]); timers[id]=setTimeout(()=>{ timers[id]=null; persist(id); },600); }
+
+async function initStore(){
+  let db=null;
+  try{ db = window.claude?.use ? await window.claude.use("db") : null; }catch{ db=null; }
+  if(!db){
+    store.mode="local"; spools=lsRead(); setStatus("opgeslagen in deze browser, exporteer voor een back-up");
+    afterLoad(); return;
+  }
+  store={mode:"db", col: db.collection("spools")};
+  let first=true;
+  const t=setTimeout(()=>{ if(first){ setStatus("data nog niet bereikbaar"); afterLoad(); } },10000);
+  store.col.onSnapshot(snap=>{
+    // objecten in place bijwerken zodat open formulieren naar hetzelfde object blijven schrijven;
+    // eigen openstaande wijzigingen niet overschrijven
+    const pending=id=>writing[id]||dirty[id]||timers[id];
+    const seen=new Set();
+    snap.docs.forEach(d=>{
+      seen.add(d.id);
+      if(pending(d.id)) return;
+      const data=structuredClone(d.data());
+      if(spools[d.id]){ const o=spools[d.id]; Object.keys(o).forEach(k=>delete o[k]); Object.assign(o,data); }
+      else spools[d.id]=data;
+    });
+    Object.keys(spools).forEach(id=>{ if(!seen.has(id) && !pending(id)) delete spools[id]; });
+    if(!snap.metadata.fromCache){ clearTimeout(t); setStatus("gesynchroniseerd"); }
+    if(first){ first=false; afterLoad(); } else { renderRail(); if(selected && !spools[selected]){ selected=null; renderMain(); } else refreshLive(); }
+  }, e=>{ clearTimeout(t); setStatus("verbinding verbroken"); if(first){ first=false; afterLoad(); } });
+}
+function afterLoad(){
+  if(!selected){ selected = sortedIds()[0] || null; }
+  renderRail(); renderMain();
+}
+
+/* ---------- helpers ---------- */
+function sortedIds(){ return Object.keys(spools).sort((a,b)=>(spools[b].updatedAt||"").localeCompare(spools[a].updatedAt||"")); }
+function lastTest(sp){ const t=sp.tests||[]; return t.length? t[t.length-1] : null; }
+function uid(){ return "s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function touch(sp){ sp.updatedAt=new Date().toISOString(); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove("on"),1800); }
+function draft(id){
+  if(!drafts[id]) drafts[id]={dim:{x:Array(5).fill(""),y:Array(5).fill("")}, spireLen:"", stringing:false, pins:"", over:"", bridges:"", ring:"", z:"", note:""};
+  return drafts[id];
+}
+function stepDecimals(step){ const s=String(step); return s.includes(".")? s.split(".")[1].length : 0; }
+
+/* ---------- rail ---------- */
+function renderRail(){
+  const ids=sortedIds();
+  const items = ids.map(id=>{
+    const sp=spools[id], lt=lastTest(sp);
+    const chip = lt ? `<span class="chip ${band(lt.total)}">${fmt(lt.total)}/30</span>` : `<span class="chip none">geen test</span>`;
+    return `<button class="spool" data-id="${id}" aria-current="${id===selected}" style="--c:${esc(sp.color||"#888")}">
+      <span class="reel" aria-hidden="true"></span>
+      <span class="meta"><span class="nm">${esc(sp.name||"Naamloze spoel")}</span><span class="sub">${esc([sp.brand,sp.material].filter(Boolean).join(" · "))}</span></span>
+      ${chip}</button>`;
+  }).join("");
+  $("#rail").innerHTML = items + `<button class="btn primary" id="newSpool">+ Nieuwe spoel</button>
+    <div class="row"><button class="btn small" id="exp">Exporteren</button><label class="btn small" for="imp">Importeren</label><input type="file" id="imp" accept=".json,application/json" hidden></div>`;
+  $("#exp").onclick=exportJSON; $("#imp").onchange=importJSON;
+  $("#rail").querySelectorAll(".spool").forEach(b=>b.onclick=()=>{ selected=b.dataset.id; renderRail(); renderMain(); });
+  $("#newSpool").onclick=newSpool;
+}
+function newSpool(){
+  const id=uid();
+  spools[id]={id, name:"Nieuwe spoel", brand:"", material:"PLA", color:"#3a7bd5", notes:"", settings:{...MATERIALS.PLA}, tests:[]};
+  touch(spools[id]); selected=id; tab="spoel";
+  renderRail(); renderMain(); persist(id);
+}
+
+/* ---------- main ---------- */
+function renderMain(){
+  const m=$("#main");
+  const sp=spools[selected];
+  if(!sp){
+    m.innerHTML=`<div class="empty"><h2>Nog geen spoelen</h2>
+      <p>Voeg een spoel toe met merk, materiaal en kleur. Daarna noteer je je Bambu Studio-instellingen, print je de testprint en vul je de zeven tests in. De tool rekent de score uit en stelt aanpassingen voor die je met één klik in je instellingen zet.</p>
+      <button class="btn primary" id="newSpool2">+ Eerste spoel toevoegen</button></div>`;
+    $("#newSpool2").onclick=newSpool; return;
+  }
+  const tabs=[["test","Test scoren"],["inst","Instellingen"],["hist","Historiek"],["spoel","Spoel"]];
+  m.innerHTML=`<section class="sheet">
+    <div class="sheet-head">
+      <div class="who" style="--c:${esc(sp.color||"#888")}"><span class="reel" aria-hidden="true"></span>
+        <div style="min-width:0"><h2>${esc(sp.name||"Naamloze spoel")}</h2><div class="hint">${esc([sp.brand,sp.material].filter(Boolean).join(" · "))} · ${(sp.tests||[]).length} test${(sp.tests||[]).length===1?"":"s"}</div></div></div>
+      <div class="scorebox" id="scorebox"></div>
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab" role="tab" data-t="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</div>
+    <div class="pane" id="pane"></div></section>`;
+  m.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ tab=b.dataset.t; renderMain(); });
+  ({test:renderTest, inst:renderSettings, hist:renderHist, spoel:renderSpoolInfo})[tab](sp);
+  refreshLive();
+}
+
+function scoreboxHTML(sc, label){
+  const segs = TESTS.map(t=>{
+    const v=sc.s[t.k]; let c="var(--line)";
+    if(v!=null) c = v>=t.max ? "var(--good)" : v>=t.max*0.5 ? "var(--warn)" : "var(--bad)";
+    return `<i style="background:${c}" title="${t.n}. ${t.title}: ${v==null?"nog niet ingevuld":fmt(v)+"/"+fmt(t.max)}"></i>`;
+  }).join("");
+  return `<div><div class="hint">${label}</div><div class="bignum">${fmt(sc.total)}<small> / 30</small></div></div><div class="segs" aria-hidden="true">${segs}</div>`;
+}
+
+function refreshLive(){
+  const sp=spools[selected]; if(!sp) return;
+  const box=$("#scorebox");
+  if(tab==="test"){
+    const sc=scoreAll(draft(selected));
+    if(box) box.innerHTML=scoreboxHTML(sc, sc.complete? "deze test" : "deze test (onvolledig)");
+    updateTestOutputs(sp, sc);
+  } else {
+    const lt=lastTest(sp);
+    if(box) box.innerHTML = lt ? scoreboxHTML({s:lt.scores,total:lt.total}, "laatste test") : `<span class="chip none">nog geen test</span>`;
+    if(tab==="hist") renderHist(sp);
+  }
+}
+
+/* ----- tab: test scoren ----- */
+function renderTest(sp){
+  const d=draft(sp.id);
+  const radio=(name,opts)=>`<div class="opts">${opts.map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${String(d[name])===String(v)?"checked":""}><span>${l}</span></label>`).join("")}</div>`;
+  const dimRows = DIMS.map((t,i)=>`<tr><td>${t} mm</td>
+    <td><input type="number" step="0.01" id="dx${i}" data-dim="x" data-i="${i}" value="${esc(d.dim.x[i])}" aria-label="Gemeten X ${t} mm"></td>
+    <td><input type="number" step="0.01" id="dy${i}" data-dim="y" data-i="${i}" value="${esc(d.dim.y[i])}" aria-label="Gemeten Y ${t} mm"></td></tr>`).join("");
+  const box=(t,inner)=>`<div class="test"><div><div class="tnum">Test ${t.n}</div><h3>${t.title}</h3></div><span class="pts" id="pts-${t.k}"></span><div class="body">${inner}</div></div>`;
+  $("#pane").innerHTML=`
+    <p class="hint" style="margin:0">Print <a href="https://github.com/kickstarter/kickstarter-autodesk-3d/blob/master/FDM-protocol/ksr_fdmtest_v4.stl" target="_blank" rel="noopener">ksr_fdmtest_v4.stl</a> met de instellingen uit het tabblad Instellingen en vul hieronder in wat je ziet en meet. De score loopt live mee.</p>
+    <div class="tests">
+      ${box(TESTS[0], `<p class="hint">Meet elke trap van de toren in X en Y met een schuifmaat.</p>
+        <div class="scroll"><table><thead><tr><th>Doel</th><th>Gemeten X</th><th>Gemeten Y</th></tr></thead><tbody>${dimRows}</tbody></table></div>
+        <div class="dimres" id="dimres"></div>`)}
+      ${box(TESTS[1], `<label class="form2" style="grid-template-columns:1fr"><span class="hint">Lengte van de kortste spire (mm)</span><input type="number" step="0.1" id="spireLen" value="${esc(d.spireLen)}"></label>
+        <label class="row"><input type="checkbox" id="stringing" ${d.stringing?"checked":""}> Draadjes tussen de spires</label>`)}
+      ${box(TESTS[2], `<p class="hint">Hoeveel van de 5 pinnen krijg je met je vingers uit hun gat?</p>${radio("pins",[[5,"Alle 5"],[4,"4"],[3,"3"],[2,"2"],[1,"1"],[0,"Geen"]])}`)}
+      ${box(TESTS[3], `<p class="hint">Vergelijk de 15°, 20° en 30° vlakken met het 45° vlak.</p>${radio("over",[[5,"Alle vlakken zien er even goed uit"],[4,"Alleen 15° is slechter"],[3,"15° en 20° zijn slechter"],[1,"Losse lussen of infill op 15°, 20° en 30°"]])}`)}
+      ${box(TESTS[4], `<p class="hint">Hoeveel bruggen raken het vlak eronder?</p>${radio("bridges",[[0,"Geen"],[1,"1"],[2,"2"],[3,"3"],[4,"Meer dan 3"]])}`)}
+      ${box(TESTS[5], `<p class="hint">Belicht van opzij. Zie je rimpels op of voorbij de derde streep?</p>${radio("ring",[["no","Nee"],["yes","Ja"]])}`)}
+      ${box(TESTS[6], `<p class="hint">Zie je op de pilaar onder de spires een herhalend laagpatroon met de periode van de Z-spindel?</p>${radio("z",[["no","Nee"],["yes","Ja"]])}`)}
+    </div>
+    <div><h2 style="margin-bottom:10px">Wat aanpassen</h2><div class="advice" id="advice"></div></div>
+    <div class="row" style="align-items:flex-end">
+      <label style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px"><span class="hint">Notitie bij deze test (optioneel)</span><input type="text" id="tnote" value="${esc(d.note)}" placeholder="bv. spoel net gedroogd, textured plate"></label>
+      <button class="btn primary" id="saveTest">Test opslaan</button>
+      <button class="btn" id="clearTest">Formulier leegmaken</button>
+    </div>`;
+  const pane=$("#pane");
+  pane.querySelectorAll("[data-dim]").forEach(inp=>inp.oninput=()=>{ d.dim[inp.dataset.dim][+inp.dataset.i]=inp.value; refreshLive(); });
+  $("#spireLen").oninput=e=>{ d.spireLen=e.target.value; refreshLive(); };
+  $("#stringing").onchange=e=>{ d.stringing=e.target.checked; refreshLive(); };
+  pane.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=()=>{ d[r.name]=r.value; refreshLive(); });
+  $("#tnote").oninput=e=>{ d.note=e.target.value; };
+  $("#saveTest").onclick=()=>saveTest(sp);
+  $("#clearTest").onclick=()=>{ delete drafts[sp.id]; renderMain(); };
+}
+
+function updateTestOutputs(sp, sc){
+  TESTS.forEach(t=>{ const el=$("#pts-"+t.k); if(el){ const v=sc.s[t.k]; el.textContent = v==null? `–/${fmt(t.max)}` : `${fmt(v)}/${fmt(t.max)}`; el.style.color = v==null? "var(--muted)" : v>=t.max? "var(--good)" : v>=t.max/2? "var(--warn)" : "var(--bad)"; }});
+  const dr=$("#dimres");
+  if(dr){ const d=sc.dim; dr.innerHTML = d ? `gem. fout X ${fmt(d.ax,3)} · Y ${fmt(d.ay,3)} · totaal ${fmt(d.overall,3)} mm<br>gem. afwijking met teken ${d.signed>0?"+":""}${fmt(d.signed,3)} mm` : "nog geen metingen"; }
+  const adv=$("#advice"); if(!adv) return;
+  const list=adviceFor(sp, draft(sp.id), sc);
+  const filled=Object.keys(sc.s).length;
+  if(!filled){ adv.innerHTML=`<p class="hint" style="margin:0">Vul de tests in. Hier verschijnt per mislukte test wat je in Bambu Studio kan aanpassen.</p>`; return; }
+  if(!list.length){ adv.innerHTML=`<div class="adv ok"><h3>Niets aan te passen voor de ingevulde tests</h3>Deze instellingen doen het goed. Sla de test op als referentie voor deze spoel.</div>`; return; }
+  adv.innerHTML=list.map((a,ai)=>{
+    const t=TESTS.find(x=>x.k===a.t);
+    const acts=a.acts.map((x,xi)=>{
+      const s=SKEY[x.k], cur=num(sp.settings?.[x.k]);
+      const base = cur!=null ? cur : (s.zero ? 0 : null);
+      const dis = base==null;
+      const to = dis? "" : ` → ${fmt(base+x.delta, stepDecimals(s.step))}`;
+      return `<button class="btn small" data-a="${ai}" data-x="${xi}" ${dis?`disabled title="Vul eerst je huidige ${esc(s.label)} in bij Instellingen"`:""}>${esc(x.label)}${to}</button>`;
+    }).join("");
+    return `<div class="adv ${a.sev==="bad"?"bad":""}"><h3>${t.n}. ${t.title}</h3><ul>${a.items.map(i=>`<li>${i}</li>`).join("")}</ul>${acts?`<div class="acts">${acts}</div>`:""}</div>`;
+  }).join("");
+  adv.querySelectorAll("button[data-a]").forEach(b=>b.onclick=()=>{
+    const x=list[+b.dataset.a].acts[+b.dataset.x]; applyDelta(sp, x.k, x.delta);
+  });
+}
+
+function applyDelta(sp, k, delta){
+  const s=SKEY[k]; sp.settings=sp.settings||{};
+  const cur=num(sp.settings[k]); const base = cur!=null? cur : (s.zero?0:null);
+  if(base==null) return;
+  const dec=stepDecimals(s.step);
+  const v=Math.round((base+delta)*10**dec)/10**dec;
+  sp.settings[k]=v; touch(sp); persistSoon(sp.id);
+  toast(`${s.label}: ${fmt(v,dec)}${s.unit?" "+s.unit:""}`);
+  refreshLive();
+}
+
+function saveTest(sp){
+  const d=draft(sp.id), sc=scoreAll(d);
+  if(!Object.keys(sc.s).length){ toast("Vul eerst minstens één test in"); return; }
+  sp.tests=sp.tests||[];
+  sp.tests.push({id:uid(), date:new Date().toISOString(), input:structuredClone(d), scores:sc.s, total:sc.total, complete:sc.complete, settings:structuredClone(sp.settings||{}), note:d.note||""});
+  if(sp.tests.length>60) sp.tests=sp.tests.slice(-60);
+  touch(sp); delete drafts[sp.id]; persist(sp.id);
+  toast(`Test opgeslagen: ${fmt(sc.total)}/30`);
+  tab="hist"; renderRail(); renderMain();
+}
+
+/* ----- tab: instellingen ----- */
+function renderSettings(sp){
+  const S=sp.settings||{};
+  const group=g=>SETTINGS.filter(s=>s.g===g).map(s=>`<div class="field"><label for="set-${s.k}"><span class="lab">${s.label}</span>${s.unit?`<span class="unit">${s.unit}</span>`:""}</label>
+    <input type="number" id="set-${s.k}" data-k="${s.k}" step="${s.step}" value="${S[s.k]??""}" placeholder="${s.zero?"0":"uit profiel"}"></div>`).join("");
+  $("#pane").innerHTML=`
+    <p class="hint" style="margin:0">Noteer wat je in Bambu Studio gebruikt voor deze spoel. Leeg laten betekent: de waarde uit je profiel, niet aangepast. Elke opgeslagen test bewaart een kopie van deze waarden.</p>
+    <div class="cols">
+      <fieldset><legend>Filamentprofiel</legend>${group("Filament")}</fieldset>
+      <fieldset><legend>Procesprofiel</legend>${group("Proces")}
+        <p class="hint" style="margin-top:8px">Procesinstellingen gelden voor de hele print. Bewaar ze in Bambu Studio als apart procesprofiel per spoel, of zet ze per object.</p></fieldset>
+    </div>
+    <div class="row"><button class="btn" id="copySet">Kopieer als tekst</button><button class="btn" id="matDef">Startwaarden ${esc(sp.material||"")} invullen</button></div>
+    <textarea id="copyArea" hidden readonly></textarea>`;
+  $("#pane").querySelectorAll("input[data-k]").forEach(inp=>inp.oninput=()=>{
+    sp.settings=sp.settings||{}; const v=num(inp.value);
+    if(v==null) delete sp.settings[inp.dataset.k]; else sp.settings[inp.dataset.k]=v;
+    touch(sp); persistSoon(sp.id);
+  });
+  $("#copySet").onclick=async()=>{
+    const lines=[`${sp.name} (${[sp.brand,sp.material].filter(Boolean).join(" ")})`];
+    SETTINGS.forEach(s=>{ const v=sp.settings?.[s.k]; if(v!=null && v!=="") lines.push(`${s.label}: ${String(v).replace(".",",")}${s.unit?" "+s.unit:""}`); });
+    const txt=lines.join("\n");
+    try{ await navigator.clipboard.writeText(txt); toast("Gekopieerd"); }
+    catch{ const ta=$("#copyArea"); ta.hidden=false; ta.value=txt; ta.focus(); ta.select(); toast("Selecteer en kopieer de tekst"); }
+  };
+  $("#matDef").onclick=()=>{
+    const def=MATERIALS[sp.material]||{};
+    if(!Object.keys(def).length){ toast("Geen startwaarden voor dit materiaal"); return; }
+    sp.settings={...(sp.settings||{}), ...def}; touch(sp); persistSoon(sp.id); renderMain();
+    toast("Startwaarden ingevuld, check het etiket van je spoel");
+  };
+}
+
+/* ----- tab: historiek ----- */
+function renderHist(sp){
+  const tests=(sp.tests||[]).slice().reverse();
+  if(!tests.length){ $("#pane").innerHTML=`<div class="empty"><p>Nog geen tests voor deze spoel. Vul het tabblad Test scoren in en klik op Test opslaan.</p></div>`; return; }
+  const all=sp.tests;
+  const rows=tests.map(t=>{
+    const i=all.indexOf(t), prev=i>0? all[i-1] : null;
+    const ch = prev ? SETTINGS.filter(s=>(prev.settings?.[s.k]??null)!==(t.settings?.[s.k]??null))
+      .map(s=>`${s.label} ${prev.settings?.[s.k]??"profiel"} → ${t.settings?.[s.k]??"profiel"}`).join("; ") || "geen wijzigingen" : "eerste test";
+    const dt=new Date(t.date);
+    const cells=TESTS.map(x=>`<td>${t.scores?.[x.k]==null?"–":fmt(t.scores[x.k])}</td>`).join("");
+    return `<tr><td>${dt.toLocaleDateString("nl-BE")} ${dt.toLocaleTimeString("nl-BE",{hour:"2-digit",minute:"2-digit"})}</td>
+      <td><span class="chip ${band(t.total)}">${fmt(t.total)}</span>${t.complete?"":" <span class=\"hint\">onvolledig</span>"}</td>${cells}
+      <td class="ch">${esc(ch)}${t.note?`<br><i>${esc(t.note)}</i>`:""}</td>
+      <td><button class="btn small" data-load="${t.id}">Instellingen terugzetten</button> <button class="btn small danger" data-del="${t.id}">Wis</button></td></tr>`;
+  }).join("");
+  $("#pane").innerHTML=`<div class="scroll"><table class="hist"><thead><tr><th>Datum</th><th>Totaal</th>${TESTS.map(t=>`<th title="${t.title}">T${t.n}</th>`).join("")}<th style="text-align:left">Gewijzigd t.o.v. vorige test</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin:0">T1 maat · T2 flow · T3 pinnen · T4 overhang · T5 bruggen · T6 ringing · T7 Z-as</p>`;
+  $("#pane").querySelectorAll("[data-load]").forEach(b=>b.onclick=()=>{
+    const t=all.find(x=>x.id===b.dataset.load); sp.settings=structuredClone(t.settings||{}); touch(sp); persist(sp.id); toast("Instellingen van die test teruggezet");
+  });
+  $("#pane").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.armed){ sp.tests=all.filter(x=>x.id!==b.dataset.del); touch(sp); persist(sp.id); renderRail(); renderMain(); }
+    else { b.dataset.armed="1"; b.textContent="Zeker?"; }
+  });
+}
+
+/* ----- tab: spoel ----- */
+function renderSpoolInfo(sp){
+  $("#pane").innerHTML=`
+    <div class="form2">
+      <label>Naam<input type="text" id="sp-name" value="${esc(sp.name)}"></label>
+      <label>Merk<input type="text" id="sp-brand" value="${esc(sp.brand)}" placeholder="bv. Bambu, eSun, Polymaker"></label>
+      <label>Materiaal<select id="sp-mat">${Object.keys(MATERIALS).map(m=>`<option ${m===sp.material?"selected":""}>${m}</option>`).join("")}</select></label>
+      <label>Kleur<input type="color" id="sp-color" value="${esc(sp.color||"#888888")}"></label>
+    </div>
+    <label class="form2" style="grid-template-columns:1fr"><span class="hint">Notities (droogtijd, plaat, aankoopdatum…)</span><textarea id="sp-notes">${esc(sp.notes)}</textarea></label>
+    <div class="row"><button class="btn danger" id="delSpool">Spoel verwijderen</button></div>`;
+  const bind=(id,k,ev="input",rerail=true)=>$(id).addEventListener(ev,e=>{ sp[k]=e.target.value; touch(sp); persistSoon(sp.id); if(rerail) renderRail(); });
+  bind("#sp-name","name"); bind("#sp-brand","brand"); bind("#sp-mat","material","change"); bind("#sp-color","color"); bind("#sp-notes","notes","input",false);
+  $("#delSpool").onclick=e=>{
+    const b=e.currentTarget;
+    if(b.dataset.armed){ const id=sp.id; delete spools[id]; selected=sortedIds()[0]||null; tab="test"; persist(id); renderRail(); renderMain(); }
+    else { b.dataset.armed="1"; b.textContent="Klik nogmaals om te verwijderen, inclusief alle tests"; }
+  };
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({app:"spoelboek",version:1,spools},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="spoelboek-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function importJSON(e){
+  const f=e.target.files[0]; if(!f) return;
+  f.text().then(t=>{
+    const d=JSON.parse(t); const inc=d.spools||{}; let n=0;
+    Object.entries(inc).forEach(([id,sp])=>{ if(sp && typeof sp==="object"){ spools[id]=sp; n++; persist(id); } });
+    selected=selected||sortedIds()[0]||null; renderRail(); renderMain(); toast(n+" spoel"+(n===1?"":"en")+" geïmporteerd");
+  }).catch(()=>toast("Dat bestand kon niet gelezen worden"));
+  e.target.value="";
+}
+initStore();
+</script>
+
+</body>
+</html>
